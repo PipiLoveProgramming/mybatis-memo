@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- namespace：名称空间，必须指定为接口的全类名 -->
+<mapper namespace="com.pp.mapper.EmployeeMapper">
+
+    <!--
+        resultMap：数据库列名与JavaBean字段映射关系标签
+
+    -->
+    <resultMap id="EmployeeResultMap" type="com.pp.bean.Employee">
+        <!--
+            指定主键列的封装规则
+            id定义主键会在底层有优化
+        -->
+        <id property="id" column="id"/>
+        <!--
+            result：定义普通列封装规则
+        -->
+        <result property="lastName" column="last_name"/>
+        <!--
+            其他不指定的列会进行自动封装
+            但是我们只要写resultMap，就要把result标签全写上
+        -->
+        <result property="gender" column="gender"/>
+        <result property="email" column="email"/>
+
+    </resultMap>
+    <!--
+        id：sql语句唯一标识
+        resultType：返回值类型
+        parameterType：可以不用写
+        #{id}：从传递过来的参数中取id值
+
+    -->
+    <!--<select id="selectEmp" resultType="employee" databaseId="mysql">
+        select * from tbl_employee where id = #{id}
+    </select>-->
+
+    <!--
+        com.pp.mapper.EmployeeMapper.getEmployeeById
+    -->
+    <select id="getEmployeeById" resultType="employee" databaseId="mysql">
+        select id, last_name lastName, gender, email from tbl_employee where id = #{id}
+    </select>
+
+    <!--
+    多个参数的查询操作
+        方式1：
+        当方法参数有多个时，MyBatis会进行特殊处理：
+        多个参数会被封装成一个Map：
+            key：param1, param2, ... , paramN
+            value：传入的参数值
+        所以，取值的时候，需要使用#{param1} #{param2} 这种方式进行取值
+    -->
+    <!--<select id="getEmployeeByIdAndLastName" resultType="employee" databaseId="mysql">
+        select id, last_name lastName, gender, email
+        from tbl_employee
+        where id = #{param1} and last_name = #{param2}
+    </select>-->
+
+    <!--
+        方式2：
+        由于上述方式过于丑陋，可以使用"命名参数"的方式，明确指定封装时，Map的key：
+            Employee getEmployeeByIdAndLastName(@Param("id") int id, @Param("lastName") String lastName);
+            通过使用@Param注解，明确指定Map的key
+                key：使用@Param注解指定的值
+                value：传入的参数值
+            取值的时候，使用#{key}来获取值
+    -->
+    <select id="getEmployeeByIdAndLastName" resultType="employee" databaseId="mysql">
+        select id, last_name lastName, gender, email
+        from tbl_employee
+        where id = #{id} and last_name = #{lastName}
+    </select>
+
+    <!--
+    POJO：
+        如果多个参数正好是我们业务逻辑的数据模型，我们就可以直接传入pojo
+            #{属性名}：取出传入的pojo的属性值
+
+        如果多个参数不是业务模型中的数据，没有对应的pojo，为了方便，我们也可以传入map
+    -->
+    <select id="getEmployeeByPojo" resultType="employee" parameterType="employee">
+        select id, last_name lastName, gender, email
+        from tbl_employee
+        where id = #{id} and last_name = #{lastName}
+    </select>
+
+    <!--
+    Map：
+        如果多个参数不是业务模型中的数据，没有对因的pojo，不经常使用，为了方便，我们也可以传入map
+        #{key}：取出map中对应的值
+
+    DTO：
+        如果多个参数不是业务模型中的数据，但是要经常使用，推荐编写一个DTO（Data Transfer Object）数据传输对象
+    -->
+    <select id="getEmployeeByMap" resultType="employee" parameterType="map">
+        select id, last_name lastName, gender, email
+        from tbl_employee
+        where id = #{id} and last_name = #{lastName}
+    </select>
+    <!--
+    其他取值方式：
+
+    public Employee getEmployee(@Param("id")int id, String lastName){}
+    取值：id           ==》 #{id} 或 #{param1}
+         lastName     ==》 #{param2}
+
+    public Employee getEmployee(int id, @Param Employee employee){}
+    取值：id           ==》 #{param1}
+         lastName     ==》 #{param2.lastName} 或 #{e.lastName}
+
+    特别注意：如果参数列表是Collection（List、Set）类型或者数组，会进行特殊处理；
+    也就是把传入的list或者数组封装在map中：如果是List，map的key为list；如果是数组，map的key为array
+
+    public List<Employee> getEmployeesByIds(List<Integer> ids){}
+    取值：第一个id的值   ==》 #{list[0]}
+    -->
+
+    <!--
+    ${}与#{}的区别：
+    mapper：select id, last_name lastName, gender, email from tbl_employee where id = #{id} and last_name = #{lastName}
+    sql：   select id, last_name lastName, gender, email from tbl_employee where id = #{id} and last_name = #{lastName}
+
+    两者都可以获取map或者pojo对象的属性值
+        #{}:是以预编译的形式，将参数设置到sql语句中；PreparedStatement；防止sql注入
+        ${}:取出的值直接拼装在sql语句中；会有安全问题
+        大多数情况下，我们取参数的值都应使用#{}；
+
+        有些特殊情况，也需要使用${}：
+            原生jdbc不支持占位符的地方我们就可以使用${}，比如：表名，排序等等
+            比如，按照年份分表拆分：
+                select * from ${year}_salary where xxxxx;
+                select * from tbl_employee order by ${} ${}
+    -->
+    <select id="getEmployeeTestDollarBracket" resultType="com.pp.bean.Employee">
+        select * from ${tableName} where id = #{id} and last_name = #{lastName}
+    </select>
+
+    <!--
+    #{}更丰富的用法：
+        可以规定参数的一些规则：
+        javaType，jdbcType，mode，numericScale
+
+        jdbcType通常需要在某种特定的条件下被设置：
+            在我们数据为null的时候，有些数据库可能不能识别MyBatis对null的默认处理：比如Oracle（报错）；
+            会报错：JdbcType OTHER：无效的类型；因为MyBatis对所有的null都映射到是原生Jdbc的OTHER类型，Oracle不能正确处理
+
+            解决方案：
+                1、在sql中，指定jdbcType=NULL：last_name = #{lastName,jdbcType=NULL}
+                2、在mybatis-config.xml中的setting标签中，指定jdbcTypeForNull=NULL
+
+    -->
+
+    <!--
+
+    select标签：
+
+    利用like，进行模糊查询，并返回List<Employee>
+    List<Employee> getEmployeesByLastNameLike(String lastName);
+    -->
+    <select id="getEmployeesByLastNameLike" resultType="employee">
+        select * from tbl_employee where last_name like concat('%',#{lastName},'%')
+    </select>
+
+    <!--
+        返回Map，以列名为key，该列名对应的值为value
+    -->
+    <select id="getEmployeeReturnMap" resultType="map">
+        select * from tbl_employee where last_name = #{lastName}
+    </select>
+
+    <!--
+        多条记录封装成一个map：Map<Integer,Employee>：键是这条记录的主键，值是记录封装后的JavaBean
+        在Mapper接口中使用@MapKey注解，指定key的字段列
+    -->
+    <select id="getEmployeeReturnMultiMap" resultType="employee">
+        select * from tbl_employee where last_name like concat('%',#{lastName},'%')
+    </select>
+
+    <!--
+        使用ResultMap查询数据
+    -->
+    <select id="getEmployeeUseResultMap" resultMap="EmployeeResultMap">
+        select * from tbl_employee where last_name = #{lastName}
+    </select>
+
+
+    <!-- 添加方法 -->
+    <!-- 获取自增主键的值 -->
+    <!--
+        MySql支持自增主键，自增主键的获取也是利用Statement.getGeneratedKeys();方法来获取到的
+                useGeneratedKeys="true"：使用自增主键获取主键值策略
+                keyProperty：指定对应的主键属性，也就是MyBatis获取到主键值以后，将这个值封装给JavaBean的哪个属性
+    -->
+    <insert id="addEmployee" parameterType="com.pp.bean.Employee"
+            useGeneratedKeys="true" keyProperty="id" databaseId="mysql">
+        insert into tbl_employee(last_name,email,gender)
+        values(#{lastName},#{email},#{gender})
+    </insert>
+    <!--
+        Oracle不支持自增主键，Oracle使用序列来模拟自增；
+        每次插入的数据的主键是从序列中拿到的值，如何获取到这个值？
+    -->
+    <insert id="addEmployee" parameterType="com.pp.bean.Employee" databaseId="oracle">
+        <!--
+            keyProperty：查出的主键值封装给JavaBean的哪个属性
+            order：当前sql在插入sql之前/之后运行
+            resultType：查出数据的返回值类型
+        -->
+        <selectKey keyProperty="id" order="BEFORE" resultType="int">
+            <!-- 编写查询主键的sql语句 -->
+            select EMPLOYEES_SEQ.nextval from dual
+        </selectKey>
+
+        <!-- 插入时的主键是从序列中拿到的 -->
+        insert into EMPLOYEES(EMPLOYEE_ID,LAST_NAME,EMAIL)
+        values(#{id},#{lastName},#{email})
+    </insert>
+
+    <!-- 更新方法 -->
+    <update id="updateEmployee" parameterType="com.pp.bean.Employee">
+        update tbl_employee
+        set last_name = #{lastName}, gender = #{gender}, email = #{email}
+        where id = #{id}
+    </update>
+
+    <!-- 删除方法 -->
+    <delete id="deleteEmployeeById">
+        delete from tbl_employee where id = #{id}
+    </delete>
+
+</mapper>
